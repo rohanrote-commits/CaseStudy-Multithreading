@@ -28,7 +28,7 @@ public class Main {
 
         System.out.println("Welcome to Banking System Simulation ");
         System.out.println("Enter the number of operations you want to perform on Banking System");
-        Integer operations = sc.nextInt();
+        int operations = sc.nextInt();
         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
 
         CountDownLatch countDownLatch = new CountDownLatch(operations);
@@ -65,6 +65,8 @@ public class Main {
                             System.out.println("Successfully deposited amount ");
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
                         }
                     });
 //                    executorService.submit(()->{
@@ -81,6 +83,8 @@ public class Main {
                         try {
                             bankingOperation.withdrawAmount(amount1, id1);
                         } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
                     });
@@ -99,6 +103,8 @@ public class Main {
                             bankingOperation.transferAmount(amount2, id2, id3);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
+                        } catch (Exception e) {
+                            System.out.println(e.getMessage());
                         }
                     });
                     //bankingOperation.transferAmount(amount2,id2,id3);
@@ -123,6 +129,8 @@ public class Main {
             executorService.schedule(runnable,2,TimeUnit.SECONDS);
 
         }
+
+
         executorService.awaitTermination(10, TimeUnit.MILLISECONDS);
         executorService.shutdown();
 

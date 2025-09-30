@@ -1,8 +1,10 @@
 package service;
 
+import CustomException.ErrorCode;
 import Models.BankData;
 import Models.User;
 import Models.UserTransactions;
+import CustomException.BankingOperationException;
 
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +26,7 @@ public class BankingOperation {
                         "\nuserId :" + user.userId+
                         "\nBank Balance : " + user.bankBalance);
             } else {
-                System.out.println("Another thread is registering");
+ //                   throw new BankingOperationException(ErrorCode.ANOTHER_THREAD_EXECTING.getCode(), ErrorCode.ANOTHER_THREAD_EXECTING.getMessage());
                 lock.lockInterruptibly();
                 try {
                     bankData.users.put(user.userId, user);
@@ -36,7 +38,7 @@ public class BankingOperation {
                     lock.unlock();
                 }
             }
-        } finally {
+        }  finally {
             if (acquired) {
                 lock.unlock();
             }
@@ -44,7 +46,10 @@ public class BankingOperation {
         return user;
     }
 
-    public void depositAmount(Integer amount, int userId) throws InterruptedException {
+    public void depositAmount(Integer amount, int userId) throws Exception {
+        if(!bankData.users.containsKey(userId)) {
+            throw new BankingOperationException(ErrorCode.USER_NOT_FOUND.getCode(), ErrorCode.USER_NOT_FOUND.getMessage());
+        }
         boolean transactionStatus = false;
         boolean acquired = lock.tryLock(100, TimeUnit.MILLISECONDS);
         try {
@@ -58,19 +63,17 @@ public class BankingOperation {
                             " Bank balance of user is : " + bankData.users.get(userId).bankBalance);
 
                     transactionStatus = true;
-                } else {
-                    System.out.println("Amount must be positive");
-                }
-                if (transactionStatus) {
-                    UserTransactions userTransaction =
-                            new UserTransactions(userId, amount, "deposit amount");
-                    bankData.userTransactions.computeIfAbsent(userId, k -> new ArrayList<>()).add(userTransaction);
-                    System.out.println("User " + userId + " has been deposited successfully\n" +
-                            "Transaction details: " + userTransaction);
-                }
+                } else throw new BankingOperationException(ErrorCode.INSUFFICIENT_BALANCE.getCode(), ErrorCode.INSUFFICIENT_BALANCE.getMessage());
+                UserTransactions userTransaction =
+                        new UserTransactions(userId, amount, "deposit amount");
+                bankData.userTransactions.computeIfAbsent(userId, k -> new ArrayList<>()).add(userTransaction);
+                System.out.println("User " + userId + " has been deposited successfully\n" +
+                        "Transaction details: " + userTransaction);
             } else {
                 lock.lockInterruptibly();
             }
+        } catch (BankingOperationException e) {
+            System.out.println(e.getMessage());
         } finally {
             if (acquired) {
                 lock.unlock();
@@ -79,7 +82,10 @@ public class BankingOperation {
     }
 
 
-    public void withdrawAmount(int amount, Integer userId) throws InterruptedException {
+    public void withdrawAmount(int amount, Integer userId) throws Exception {
+        if(!bankData.users.containsKey(userId)) {
+            throw new BankingOperationException(ErrorCode.USER_NOT_FOUND.getCode(), ErrorCode.USER_NOT_FOUND.getMessage());
+        }
         boolean transactionStatus = false;
         boolean acquired = lock.tryLock(100, TimeUnit.MILLISECONDS);
         try {
@@ -94,7 +100,7 @@ public class BankingOperation {
                     System.out.println("Bank balance of user is : " + bankData.users.get(userId).bankBalance);
                     transactionStatus = true;
                 } else {
-                    System.out.println("Bank does not have enough balance");
+                   throw new BankingOperationException(ErrorCode.INSUFFICIENT_BALANCE.getCode(),  ErrorCode.INSUFFICIENT_BALANCE.getMessage());
                 }
                 if (transactionStatus) {
                     UserTransactions userTransaction =
@@ -113,8 +119,11 @@ public class BankingOperation {
         }
     }
 
-
-    public void transferAmount(int amount, Integer userId, Integer trasferUserId) throws InterruptedException {
+//TODO : add validations, create deadlock
+    public void transferAmount(int amount, Integer userId, Integer trasferUserId) throws Exception {
+        if((!bankData.users.containsKey(userId) || !bankData.userTransactions.containsKey(trasferUserId))){
+            throw new BankingOperationException(ErrorCode.USER_NOT_FOUND.getCode(), ErrorCode.USER_NOT_FOUND.getMessage());
+        }
         boolean acquired = lock.tryLock(100, TimeUnit.MILLISECONDS);
         try {
             if (acquired) {
@@ -124,7 +133,7 @@ public class BankingOperation {
                     bankData.users.get(userId).bankBalance.set(bankData.users.get(userId).bankBalance.get() - amount);
                     transactionStatus = true;
                 } else {
-                    System.out.println("User does not have enough balance");
+                   throw new BankingOperationException(ErrorCode.INSUFFICIENT_BALANCE.getCode(),  ErrorCode.INSUFFICIENT_BALANCE.getMessage());
                 }
                 if (transactionStatus) {
                     UserTransactions userTransaction = new UserTransactions(userId, bankData.users.get(trasferUserId), amount, "transfer amount");
